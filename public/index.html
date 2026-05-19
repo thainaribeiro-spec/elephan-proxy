@@ -250,8 +250,12 @@ function render() {
 
         <div class="resumo">${r.resumo_executivo}</div>
 
-        <div class="metrics" style="grid-template-columns:repeat(2,1fr);max-width:320px">
-          ${[{l:"Nota geral",v:r.nota_geral},{l:"Scorecard",v:r.scorecard?.nota}].map(m=>`
+        <div class="metrics" style="grid-template-columns:repeat(3,1fr);max-width:480px">
+          ${[
+            {l:"Média scorecard", v:r.nota_geral},
+            {l:"Reunião mais alta", v:r.nota_mais_alta},
+            {l:"Reunião mais baixa", v:r.nota_mais_baixa}
+          ].map(m=>`
             <div class="metric">
               <div class="metric-label">${m.l}</div>
               ${scoreRingSVG(m.v||0, notaColor(m.v||0))}
@@ -281,14 +285,33 @@ function render() {
         </div>
 
         <div class="two-cols">
-          ${[{t:"Gestão de objeções",d:r.objecoes},{t:"Negociação",d:r.negociacao}].map(({t,d})=>`
-            <div>
-              <div class="sec-label">${t}</div>
-              <div class="card">
-                <p style="font-size:13px;color:#666;line-height:1.6;margin-bottom:8px">${d?.detalhes}</p>
-                ${(d?.exemplos||[]).map(e=>`<div class="obs-item">"${e}"</div>`).join("")}
-              </div>
-            </div>`).join("")}
+          <div>
+            <div class="sec-label">Contorno de objeções — telas</div>
+            <div class="card">
+              <p style="font-size:13px;color:#666;line-height:1.6">${r.objecoes?.detalhes}</p>
+            </div>
+          </div>
+          <div>
+            <div class="sec-label">Fluência leitora</div>
+            <div class="card">
+              <p style="font-size:13px;color:#666;line-height:1.6">${r.fluencia_leitora?.detalhes}</p>
+            </div>
+          </div>
+        </div>
+
+        <div style="margin-bottom:1.5rem">
+          <div class="sec-label">Negociação e expansão</div>
+          <div class="card">
+            <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px">
+              <span style="font-size:12px;font-weight:500;padding:4px 10px;border-radius:6px;background:${r.negociacao?.comunicar?.abordou ? (r.negociacao?.comunicar?.ativo ? "#E1F5EE" : "#FAEEDA") : "#F1EFE8"};color:${r.negociacao?.comunicar?.abordou ? (r.negociacao?.comunicar?.ativo ? "#085041" : "#633806") : "#444441"}">
+                Comunicar ${r.negociacao?.comunicar?.abordou ? (r.negociacao?.comunicar?.ativo ? "✓ proativo" : "— reativo") : "— não abordado"}
+              </span>
+              <span style="font-size:12px;font-weight:500;padding:4px 10px;border-radius:6px;background:${r.negociacao?.hibrida?.abordou ? (r.negociacao?.hibrida?.ativo ? "#E1F5EE" : "#FAEEDA") : "#F1EFE8"};color:${r.negociacao?.hibrida?.abordou ? (r.negociacao?.hibrida?.ativo ? "#085041" : "#633806") : "#444441"}">
+                Exp. Híbrida ${r.negociacao?.hibrida?.abordou ? (r.negociacao?.hibrida?.ativo ? "✓ proativo" : "— reativo") : "— não abordado"}
+              </span>
+            </div>
+            <p style="font-size:13px;color:#666;line-height:1.6">${r.negociacao?.detalhes}</p>
+          </div>
         </div>
 
         <div>
