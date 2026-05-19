@@ -9,109 +9,142 @@ async function elkFetch(path) {
 
 function avg(arr) { return arr.length ? arr.reduce((a,b)=>a+b,0)/arr.length : 0; }
 
+function extrairTrechosObjecoes(transcricao) {
+  if (!transcricao) return [];
+  const linhas = transcricao.split(/[.!?]\s+/);
+  const keywords = ["objeç","não consigo","não tenho","não vou","difícil","problema","preocup","caro","valor","cust","não funciona","reclamaç","insatisf","frustr"];
+  return linhas.filter(l => keywords.some(k => l.toLowerCase().includes(k))).slice(0,3).map(l => l.trim().slice(0,120));
+}
+
+function extrairTrechosNegociacao(transcricao) {
+  if (!transcricao) return [];
+  const linhas = transcricao.split(/[.!?]\s+/);
+  const keywords = ["próximos passos","próximo passo","combinar","vamos fazer","proposta","acordo","plano de ação","encaminh","sugerir","que tal","podemos","vou verificar","vou confirmar"];
+  return linhas.filter(l => keywords.some(k => l.toLowerCase().includes(k))).slice(0,3).map(l => l.trim().slice(0,120));
+}
+
+function gerarInsightObjecoes(transcribes) {
+  const trechos = transcribes.flatMap(t => extrairTrechosObjecoes(t.transcript?.text || ""));
+  if (trechos.length === 0) return { detalhes: "Não foram identificadas objeções explícitas nas reuniões do período. Isso pode indicar reuniões com alta satisfação ou ausência de registro de pontos de resistência do cliente.", exemplos: [] };
+  const qtd = trechos.length;
+  const detalhes = `Foram identificados ${qtd} momento${qtd>1?"s":""} de objeção ou resistência nas reuniões. ${qtd >= 3 ? "O cliente trouxe pontos de insatisfação relevantes que merecem atenção no próximo ciclo." : "As objeções foram pontuais e parecem ter sido contornadas."}`;
+  return { detalhes, exemplos: trechos.slice(0,2) };
+}
+
+function gerarInsightNegociacao(transcribes) {
+  const trechos = transcribes.flatMap(t => extrairTrechosNegociacao(t.transcript?.text || ""));
+  if (trechos.length === 0) return { detalhes: "Não foram identificados registros claros de negociação ou definição de próximos passos nas transcrições. Recomenda-se reforçar o encerramento de reuniões com combinados explícitos.", exemplos: [] };
+  const qtd = trechos.length;
+  const detalhes = `Foram identificados ${qtd} momento${qtd>1?"s":""} de negociação ou encaminhamento nas reuniões. ${qtd >= 3 ? "O analista demonstra boa prática de fechar acordos e definir próximos passos." : "Há oportunidade de aprofundar a construção conjunta de planos de ação com o cliente."}`;
+  return { detalhes, exemplos: trechos.slice(0,2) };
+}
+
+function gerarSugestoesMelhoria(transcribes) {
+  // Baseado nas perguntas do scorecard com nota baixa ou não respondidas
+  const pergsBaixas = transcribes.flatMap(t =>
+    (t.answers||[]).filter(a => (a.score > 0 && a.score < 7) || a.yesNo === "no")
+      .map(a => a.question)
+  ).filter(Boolean);
+
+  const pergsNaoRespondidas = transcribes.flatMap(t =>
+    (t.answers||[]).filter(a => !a.score && !a.yesNo && a.question)
+      .map(a => a.question)
+  ).filter(Boolean);
+
+  const sugestoes = [];
+
+  if (pergsBaixas.some(p => p.toLowerCase().includes("obje"))) sugestoes.push("Desenvolver técnicas mais estruturadas para lidar com objeções — preparar argumentações para as resistências mais comuns do segmento.");
+  if (pergsBaixas.some(p => p.toLowerCase().includes("plano") || p.toLowerCase().includes("próximos"))) sugestoes.push("Reforçar o encerramento das reuniões com planos de ação claros, datas definidas e responsáveis identificados.");
+  if (pergsNaoRespondidas.some(p => p.toLowerCase().includes("fluência") || p.toLowerCase().includes("leitora"))) sugestoes.push("Explorar mais a funcionalidade de Fluência Leitora durante as reuniões — há critério de scorecard não abordado nesse tema.");
+  if (pergsNaoRespondidas.some(p => p.toLowerCase().includes("sentimento") || p.toLowerCase().includes("satisf"))) sugestoes.push("Incluir verificação explícita do sentimento geral do cliente ao final das reuniões.");
+  if (pergsBaixas.some(p => p.toLowerCase().includes("comunicaç") || p.toLowerCase().includes("vícios"))) sugestoes.push("Trabalhar a comunicação verbal — reduzir vícios de linguagem e gerúndios para transmitir mais segurança.");
+  if (pergsNaoRespondidas.some(p => p.toLowerCase().includes("abertura") || p.toLowerCase().includes("agenda"))) sugestoes.push("Reforçar a abertura estruturada das reuniões, explicando agenda e duração antes de iniciar.");
+
+  if (sugestoes.length === 0) {
+    sugestoes.push("Manter a consistência na cobertura de todos os tópicos do scorecard.");
+    sugestoes.push("Aprofundar o diagnóstico inicial antes de propor soluções.");
+    sugestoes.push("Registrar encaminhamentos com mais precisão ao final de cada reunião.");
+  }
+
+  return sugestoes.slice(0,4);
+}
+
+function gerarPontosFortes(transcribes) {
+  const pergAltas = transcribes.flatMap(t =>
+    (t.answers||[]).filter(a => a.score >= 8 && a.question)
+  );
+  const simRespondidas = transcribes.flatMap(t =>
+    (t.answers||[]).filter(a => a.yesNo === "yes" && a.question)
+  );
+
+  const pontos = [...new Set([
+    ...pergAltas.map(a => a.question.split("?")[0].trim()),
+    ...simRespondidas.map(a => a.question.split("?")[0].trim())
+  ])].slice(0,5);
+
+  return pontos.length > 0 ? pontos.slice(0,3) : [
+    "Condução das reuniões com presença e escuta ativa",
+    "Apresentação de dados de uso com clareza",
+    "Engajamento do cliente na definição de próximos passos"
+  ];
+}
+
 function gerarRelatorio(transcribes, analista, periodo, tipoReuniao) {
   const total = transcribes.length;
 
-  // Scorecard: média das notas numéricas dos answers
   const todasNotas = transcribes.flatMap(t =>
     (t.answers||[]).filter(a => typeof a.score === "number" && a.score > 0).map(a => a.score)
   );
   const notaScorecard = todasNotas.length ? Math.round(avg(todasNotas)*10)/10 : 0;
 
-  // Aderência: % de perguntas respondidas (sim/não = yes) + com nota > 0
   const totalPerguntas = transcribes.flatMap(t => (t.answers||[])).length;
-  const respondidas = transcribes.flatMap(t => (t.answers||[]).filter(a =>
-    a.score > 0 || a.yesNo === "yes"
-  )).length;
+  const respondidas = transcribes.flatMap(t =>
+    (t.answers||[]).filter(a => a.score > 0 || a.yesNo === "yes")
+  ).length;
   const aderencia = totalPerguntas > 0 ? Math.round((respondidas/totalPerguntas)*100) : 0;
 
-  // Objeções: busca perguntas relacionadas
-  const pergObjecoes = transcribes.flatMap(t =>
-    (t.answers||[]).filter(a => a.question && (a.question.toLowerCase().includes("obje") || a.question.toLowerCase().includes("contorn")))
-  );
-  const notaObjecoes = pergObjecoes.filter(a=>a.score>0).length
-    ? Math.round(avg(pergObjecoes.filter(a=>a.score>0).map(a=>a.score))*10)/10
-    : Math.round(notaScorecard * 0.9 * 10)/10;
+  const insightObjecoes = gerarInsightObjecoes(transcribes);
+  const insightNegociacao = gerarInsightNegociacao(transcribes);
+  const pontosFortes = gerarPontosFortes(transcribes);
+  const sugestoesMelhoria = gerarSugestoesMelhoria(transcribes);
 
-  // Negociação: busca perguntas relacionadas
-  const pergNeg = transcribes.flatMap(t =>
-    (t.answers||[]).filter(a => a.question && (a.question.toLowerCase().includes("negoci") || a.question.toLowerCase().includes("plano") || a.question.toLowerCase().includes("próximos")))
-  );
-  const notaNeg = pergNeg.filter(a=>a.score>0).length
-    ? Math.round(avg(pergNeg.filter(a=>a.score>0).map(a=>a.score))*10)/10
-    : Math.round(notaScorecard * 0.95 * 10)/10;
-
-  const notaGeral = Math.round(avg([notaScorecard, notaObjecoes, notaNeg])*10)/10;
-
-  // Sentimento médio do analista
-  const sentimentos = transcribes.flatMap(t => {
-    const sp = t.sentimentAnalysis?.speakerSentiment?.find(s =>
-      s.speaker?.toLowerCase().includes(analista.split(" ")[0].toLowerCase())
-    );
-    return sp ? sp.sentiments : [];
-  });
-  const posPerc = sentimentos.filter(s=>s.sentimental==="POSITIVE").reduce((a,b)=>a+b.perc,0) / (sentimentos.length||1);
-
-  // Pontos fortes: perguntas com nota alta
-  const pergAltas = transcribes.flatMap(t =>
-    (t.answers||[]).filter(a => a.score >= 8 && a.question)
-  ).slice(0,5);
-  const pontosFortes = pergAltas.length > 0
-    ? [...new Set(pergAltas.map(a => a.question.slice(0,80).split("?")[0].trim()))].slice(0,3)
-    : ["Boa condução das reuniões", "Engajamento com o cliente", "Cumprimento de agenda"];
-
-  // Pontos a melhorar: perguntas com nota baixa ou sem resposta
-  const pergBaixas = transcribes.flatMap(t =>
-    (t.answers||[]).filter(a => (a.score > 0 && a.score < 7) || a.yesNo === "no")
-  ).slice(0,5);
-  const pontosmelhorar = pergBaixas.length > 0
-    ? [...new Set(pergBaixas.map(a => a.question.slice(0,80).split("?")[0].trim()))].slice(0,3)
-    : ["Aprofundar gestão de objeções", "Registrar encaminhamentos com mais clareza", "Explorar mais tópicos do scorecard"];
-
-  // Evolução: notas por reunião ordenadas por data
   const porData = [...transcribes].sort((a,b) => new Date(a.dateIncluded)-new Date(b.dateIncluded));
   const notasPorReuniao = porData.map((t,i) => {
     const ns = (t.answers||[]).filter(a=>a.score>0).map(a=>a.score);
-    return { label: `Reun. ${i+1}`, nota: ns.length ? Math.round(avg(ns)*10)/10 : notaGeral };
+    return { label: `Reun. ${i+1}`, nota: ns.length ? Math.round(avg(ns)*10)/10 : notaScorecard };
   });
-  const primeira = notasPorReuniao[0]?.nota || notaGeral;
-  const ultima = notasPorReuniao[notasPorReuniao.length-1]?.nota || notaGeral;
+  const primeira = notasPorReuniao[0]?.nota || notaScorecard;
+  const ultima = notasPorReuniao[notasPorReuniao.length-1]?.nota || notaScorecard;
   const tendencia = ultima > primeira + 0.3 ? "crescente" : ultima < primeira - 0.3 ? "decrescente" : "estável";
 
-  // Exemplos de objeções dos summaries
-  const exemplosObjecoes = transcribes
-    .map(t => t.summary?.match(/obje[çc][aã][oa][^.]*\./i)?.[0])
-    .filter(Boolean).slice(0,2);
+  const notaGeral = notaScorecard;
 
   return {
-    analista,
-    periodo,
+    analista, periodo,
     tipo_reuniao: tipoReuniao || "Todos os tipos",
     total_reunioes: total,
     nota_geral: notaGeral,
     scorecard: {
       nota: notaScorecard,
       aderencia_percentual: aderencia,
-      detalhes: `O analista cobriu ${aderencia}% dos critérios do scorecard. Nota média nas avaliações: ${notaScorecard}/10. ${aderencia >= 80 ? "Boa aderência geral ao roteiro." : "Há espaço para cobrir mais tópicos do roteiro."}`
+      detalhes: `Aderência de ${aderencia}% aos critérios do scorecard. Nota média: ${notaScorecard}/10. ${aderencia >= 80 ? "Boa cobertura do roteiro." : aderencia >= 60 ? "Cobertura parcial — há tópicos relevantes não abordados." : "Baixa aderência ao roteiro — vários critérios precisam ser trabalhados."}`
     },
     objecoes: {
-      nota: notaObjecoes,
-      detalhes: `Gestão de objeções com nota ${notaObjecoes}/10. ${notaObjecoes >= 8 ? "Boa capacidade de contornar objeções." : "Há oportunidade de desenvolver argumentações mais estruturadas."}`,
-      exemplos: exemplosObjecoes.length ? exemplosObjecoes : ["Identificar e registrar objeções com mais clareza nas reuniões"]
+      detalhes: insightObjecoes.detalhes,
+      exemplos: insightObjecoes.exemplos
     },
     negociacao: {
-      nota: notaNeg,
-      detalhes: `Negociação e definição de próximos passos com nota ${notaNeg}/10. ${notaNeg >= 8 ? "Bom alinhamento de próximas etapas com o cliente." : "Recomenda-se aprofundar a construção conjunta de planos de ação."}`,
-      exemplos: []
+      detalhes: insightNegociacao.detalhes,
+      exemplos: insightNegociacao.exemplos
     },
     pontos_fortes: pontosFortes,
-    pontos_melhorar: pontosmelhorar,
+    pontos_melhorar: sugestoesMelhoria,
     evolucao: {
       tendencia,
-      descricao: `Tendência ${tendencia} ao longo do período analisado. ${tendencia === "crescente" ? "O analista demonstra evolução consistente." : tendencia === "decrescente" ? "Atenção: queda no desempenho ao longo do período." : "Desempenho estável ao longo das reuniões."}`,
+      descricao: `Tendência ${tendencia} ao longo do período. ${tendencia === "crescente" ? "O analista demonstra evolução consistente nas avaliações." : tendencia === "decrescente" ? "Atenção: queda no desempenho ao longo do período — recomenda-se acompanhamento próximo." : "Desempenho estável ao longo das reuniões analisadas."}`,
       notas_por_reuniao: notasPorReuniao
     },
-    resumo_executivo: `Relatório de ${total} reuniões do tipo ${tipoReuniao||"todos"} no período ${periodo}. Nota geral: ${notaGeral}/10. Aderência ao scorecard: ${aderencia}%. Tendência de desempenho: ${tendencia}. ${pontosFortes[0] ? `Destaque positivo: ${pontosFortes[0]}.` : ""}`
+    resumo_executivo: `Análise de ${total} reunião${total>1?"ões":""} do tipo ${tipoReuniao||"todos"} no período ${periodo}. Nota média no scorecard: ${notaScorecard}/10, com ${aderencia}% de aderência ao roteiro. Tendência de desempenho: ${tendencia}. ${insightObjecoes.exemplos.length > 0 ? "Foram identificados momentos de objeção que merecem atenção." : "Reuniões sem objeções explícitas registradas."} ${sugestoesMelhoria[0] ? `Principal foco de desenvolvimento: ${sugestoesMelhoria[0].slice(0,80)}.` : ""}`
   };
 }
 
