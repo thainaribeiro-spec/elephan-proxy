@@ -1,1 +1,1 @@
-{"functions":{"api/elephan.js":{"runtime":"nodejs20.x"}}}
+{"functions":{"api/elephan.js":{"runtime":"@vercel/node@3.0.0"}}}
