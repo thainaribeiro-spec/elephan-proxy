@@ -250,8 +250,8 @@ function render() {
 
         <div class="resumo">${r.resumo_executivo}</div>
 
-        <div class="metrics">
-          ${[{l:"Nota geral",v:r.nota_geral},{l:"Scorecard",v:r.scorecard?.nota},{l:"Objeções",v:r.objecoes?.nota},{l:"Negociação",v:r.negociacao?.nota}].map(m=>`
+        <div class="metrics" style="grid-template-columns:repeat(2,1fr);max-width:320px">
+          ${[{l:"Nota geral",v:r.nota_geral},{l:"Scorecard",v:r.scorecard?.nota}].map(m=>`
             <div class="metric">
               <div class="metric-label">${m.l}</div>
               ${scoreRingSVG(m.v||0, notaColor(m.v||0))}
