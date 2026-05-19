@@ -155,40 +155,30 @@ function exportHTML() {
 }
 
 async function generate() {
-  if (!state.analista) return;
+  if (!state.analista || !state.tipoReuniao) return;
   state.step = "loading"; state.error = "";
   render();
 
   try {
-    state.loadingMsg = "Buscando reuniões..."; render();
-    const params = { userId: state.userId, promptId: state.promptId };
-    if (state.dataInicio) params.startDate = state.dataInicio + "T00:00:00Z";
-    if (state.dataFim) params.endDate = state.dataFim + "T23:59:59Z";
-    const raw = await proxyFetch("transcribes", params);
-    const lista = raw.data || [];
-
-    if (lista.length === 0) throw new Error(`Nenhuma reunião encontrada para ${state.analista} no período.`);
-
-    const dadosParaAnalise = lista.map(t => ({
-      titulo: t.title,
-      data: t.dateIncluded,
-      duracao_segundos: t.duration,
-      tipo: t.prompt?.name,
-      transcricao: t.transcript?.text?.slice(0, 2000) || null,
-      scorecard_respostas: (t.answers||[]).filter(a=>a.score!=null).map(a=>({pergunta:a.question?.slice(0,80), nota:a.score})),
-      scorecard_simnao: (t.answers||[]).filter(a=>a.yesNo).map(a=>({pergunta:a.question?.slice(0,60), resposta:a.yesNo})),
-      resumo: t.summary?.slice(0, 500) || null,
-      sentimento_analista: t.sentimentAnalysis?.speakerSentiment?.find(s=>s.speaker===state.analista)?.sentiments || null,
-    }));
-
+    state.loadingMsg = "Buscando reuniões e gerando relatório..."; render();
     const periodo = state.dataInicio && state.dataFim
       ? `${new Date(state.dataInicio).toLocaleDateString("pt-BR")} a ${new Date(state.dataFim).toLocaleDateString("pt-BR")}`
       : state.dataInicio ? `A partir de ${new Date(state.dataInicio).toLocaleDateString("pt-BR")}` : "Todos os períodos";
 
-    state.loadingMsg = `${lista.length} reuniões encontradas. Analisando com IA...`; render();
-    const resultado = await claudeAnalyze(dadosParaAnalise, state.analista, periodo, state.tipoReuniao);
-    if (!resultado) throw new Error("Não foi possível gerar o relatório.");
-    state.relatorio = resultado;
+    const params = {
+      userId: state.userId,
+      promptId: state.promptId,
+      analista: state.analista,
+      tipoReuniao: state.tipoReuniao,
+      periodo: periodo
+    };
+    if (state.dataInicio) params.startDate = state.dataInicio + "T00:00:00Z";
+    if (state.dataFim) params.endDate = state.dataFim + "T23:59:59Z";
+
+    const raw = await proxyFetch("relatorio", params);
+    if (raw.error) throw new Error(raw.error);
+    if (!raw.data) throw new Error("Não foi possível gerar o relatório.");
+    state.relatorio = raw.data;
     state.step = "result";
   } catch(e) {
     state.error = e.message; state.step = "error";
@@ -315,9 +305,14 @@ function render() {
 
 function selectAnalista(val) {
   if (!val) { state.analista = ""; state.userId = ""; render(); return; }
-  const [id, name] = val.split("|");
-  state.userId = id;
-  state.analista = name;
+  const parts = val.split("|");
+  state.userId = parts[0];
+  state.analista = parts.slice(1).join("|");
+  // Se userId vazio, tenta encontrar nos users carregados
+  if (!state.userId && state.users.length) {
+    const u = state.users.find(u => u.email === state.analista || u.name === state.analista);
+    if (u) state.userId = u.id;
+  }
   render();
 }
 
