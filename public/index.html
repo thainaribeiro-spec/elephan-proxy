@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Relatório de Analista — Elephan</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f5f5f3; color: #1a1a1a; min-height: 100vh; }
+  .container { max-width: 760px; margin: 0 auto; padding: 2rem 1.5rem; }
+  h1 { font-size: 22px; font-weight: 500; margin-bottom: 4px; }
+  .subtitle { font-size: 13px; color: #666; margin-bottom: 2rem; }
+  label { display: block; font-size: 13px; color: #555; margin-bottom: 6px; }
+  select, input[type=date], input[type=text] { width: 100%; padding: 8px 12px; border: 0.5px solid #d0d0c8; border-radius: 8px; font-size: 14px; background: #fff; margin-bottom: 1.25rem; appearance: none; }
+  select:focus, input:focus { outline: 2px solid #378ADD; outline-offset: 1px; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .btn { width: 100%; padding: 11px; font-size: 14px; font-weight: 500; background: #1a1a1a; color: #fff; border: none; border-radius: 8px; cursor: pointer; transition: opacity 0.15s; }
+  .btn:hover { opacity: 0.85; }
+  .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  .btn-sec { background: #fff; color: #1a1a1a; border: 0.5px solid #d0d0c8; }
+  .tipo-btns { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 1.25rem; }
+  .tipo-btn { font-size: 12px; padding: 5px 14px; border-radius: 99px; border: 0.5px solid #d0d0c8; background: #fff; cursor: pointer; transition: all 0.1s; }
+  .tipo-btn.active { background: #E6F1FB; border-color: #378ADD; color: #185FA5; font-weight: 500; }
+  .preview { background: #f0f7e6; border-left: 3px solid #639922; border-radius: 0 8px 8px 0; padding: 10px 14px; font-size: 12px; color: #3B6D11; margin-bottom: 1.5rem; line-height: 1.6; }
+  .spinner { display: flex; flex-direction: column; align-items: center; gap: 14px; padding: 4rem 0; }
+  .spin { width: 28px; height: 28px; border-radius: 50%; border: 3px solid #e0e0d8; border-top-color: #378ADD; animation: spin 0.7s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .spin-msg { font-size: 14px; color: #888; }
+  .error-box { background: #fff5f5; border-left: 3px solid #D85A30; border-radius: 0 8px 8px 0; padding: 12px 16px; font-size: 14px; color: #712B13; margin-bottom: 1rem; }
+  .report { background: #fff; border-radius: 12px; padding: 1.75rem; box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
+  .report-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 12px; }
+  .report-name { font-size: 20px; font-weight: 500; margin-bottom: 6px; }
+  .report-meta { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 13px; color: #666; }
+  .badge { font-size: 11px; font-weight: 500; padding: 3px 10px; border-radius: 99px; }
+  .badge-blue { background: #E6F1FB; color: #0C447C; }
+  .badge-green { background: #E1F5EE; color: #085041; }
+  .badge-red { background: #FAECE7; color: #712B13; }
+  .badge-gray { background: #F1EFE8; color: #444441; }
+  .resumo { background: #f5f9ff; border-left: 3px solid #378ADD; border-radius: 0 8px 8px 0; padding: 12px 16px; font-size: 13px; color: #555; font-style: italic; line-height: 1.7; margin-bottom: 1.75rem; }
+  .metrics { display: grid; grid-template-columns: repeat(4,1fr); gap: 10px; margin-bottom: 1.75rem; }
+  .metric { background: #f5f5f3; border-radius: 8px; padding: 12px; text-align: center; }
+  .metric-label { font-size: 11px; color: #888; margin-bottom: 8px; }
+  .metric-score { font-size: 22px; font-weight: 500; }
+  .sec-label { font-size: 11px; font-weight: 500; letter-spacing: 0.08em; color: #888; text-transform: uppercase; margin-bottom: 10px; }
+  .card { background: #fff; border: 0.5px solid #e0e0d8; border-radius: 8px; padding: 14px 16px; }
+  .pts-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem; margin-bottom: 1.5rem; }
+  .pt-item { display: flex; gap: 8px; align-items: flex-start; font-size: 13px; line-height: 1.6; margin-bottom: 6px; }
+  .pt-icon { flex-shrink: 0; margin-top: 2px; font-weight: 600; }
+  .bar-wrap { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
+  .bar-track { flex: 1; height: 6px; background: #e0e0d8; border-radius: 99px; overflow: hidden; }
+  .bar-fill { height: 100%; border-radius: 99px; transition: width 0.6s ease; }
+  .obs-item { font-size: 12px; color: #666; background: #f5f5f3; border-radius: 6px; padding: 6px 10px; margin-top: 4px; }
+  .two-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem; margin-bottom: 1.5rem; }
+  svg text { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+  @media (max-width: 600px) {
+    .metrics { grid-template-columns: repeat(2,1fr); }
+    .pts-grid, .two-cols, .grid2 { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <div id="app"></div>
+</div>
+
+<script>
+const PROXY = "https://elephan-proxy.vercel.app/api/elephan";
+const CLAUDE_API = "https://api.anthropic.com/v1/messages";
+const CS_EMAILS = ["chimeny@arvore.com.br","victoria@arvore.com.br","joyce.nascimento@arvore.com.br","thais.borges@arvore.com.br","quezia.oliveira@arvore.com.br","mariaeduarda.neves@arvore.com.br","naylane@arvore.com.br","joao.tesliuk@arvore.com.br","roberta.cosendey@arvore.com.br","laura.zanatta@arvore.com.br","jaqueline.rovere@arvore.com.br"];
+const TIPOS = [{ id: "6824e64c6226cbee414c98b1", name: "EBR" }, { id: "68d693bdc7b9814a80a5923f", name: "Apresentação Ler Experiência Híbrida" }];
+
+let state = { step: "config", users: [], analista: "", userId: "", tipoReuniao: "", promptId: "", dataInicio: "2026-03-01", dataFim: "", loadingMsg: "", relatorio: null, error: "" };
+
+async function proxyFetch(action, params={}) {
+  const q = new URLSearchParams({ action, ...params });
+  const res = await fetch(`${PROXY}?${q}`);
+  if (!res.ok) throw new Error(`Erro ${res.status}`);
+  return res.json();
+}
+
+async function claudeAnalyze(dados, analista, periodo, tipo) {
+  const tipoCtx = tipo ? `O tipo de reunião é "${tipo}". Considere esse contexto na avaliação.` : "";
+  const res = await fetch(CLAUDE_API, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      model: "claude-sonnet-4-20250514",
+      max_tokens: 1000,
+      system: "Você é especialista em análise de desempenho de analistas de Customer Success. Analise os dados e gere um relatório em JSON. Responda APENAS com JSON válido, sem markdown.",
+      messages: [{ role: "user", content: `Analista: "${analista}", Período: "${periodo}". ${tipoCtx}
+Retorne EXATAMENTE este JSON:
+{"analista":"nome","periodo":"período","tipo_reuniao":"tipo","total_reunioes":0,"nota_geral":0.0,"scorecard":{"nota":0,"aderencia_percentual":0,"detalhes":"texto"},"objecoes":{"nota":0,"detalhes":"texto","exemplos":["ex1"]},"negociacao":{"nota":0,"detalhes":"texto","exemplos":["ex1"]},"pontos_fortes":["p1","p2","p3"],"pontos_melhorar":["p1","p2","p3"],"evolucao":{"tendencia":"crescente","descricao":"texto","notas_por_reuniao":[{"label":"Reunião 1","nota":0}]},"resumo_executivo":"texto"}
+Dados: ${JSON.stringify(dados)}` }]
+    })
+  });
+  const json = await res.json();
+  const text = json.content?.find(b => b.type === "text")?.text || "{}";
+  try { return JSON.parse(text.replace(/```json|```/g,"").trim()); } catch { return null; }
+}
+
+function notaColor(n) { return n >= 8 ? "#1D9E75" : n >= 6 ? "#BA7517" : "#D85A30"; }
+
+function scoreRingSVG(value, color, size=64) {
+  const r = size/2-7, circ = 2*Math.PI*r, dash = (value/10)*circ;
+  return `<svg width="${size}" height="${size}">
+    <circle cx="${size/2}" cy="${size/2}" r="${r}" fill="none" stroke="#e0e0d8" stroke-width="5"/>
+    <circle cx="${size/2}" cy="${size/2}" r="${r}" fill="none" stroke="${color}" stroke-width="5"
+      stroke-dasharray="${dash} ${circ}" stroke-linecap="round" transform="rotate(-90 ${size/2} ${size/2})"/>
+    <text x="${size/2}" y="${size/2+1}" text-anchor="middle" dominant-baseline="middle"
+      fill="#1a1a1a" font-size="${size*0.21}" font-weight="500">${value.toFixed(1)}</text>
+  </svg>`;
+}
+
+function trendSVG(data) {
+  if (!data || data.length < 2) return "";
+  const w=260,h=72,pad=14;
+  const notes=data.map(d=>d.nota);
+  const min=Math.min(...notes)-1, max=Math.max(...notes)+1;
+  const xStep=(w-pad*2)/(data.length-1);
+  const yScale=v=>h-pad-((v-min)/(max-min))*(h-pad*2);
+  const pts=data.map((d,i)=>`${pad+i*xStep},${yScale(d.nota)}`).join(" ");
+  const color=notes[notes.length-1]>=notes[0]?"#1D9E75":"#D85A30";
+  return `<svg width="${w}" height="${h}">
+    <polyline points="${pts}" fill="none" stroke="${color}" stroke-width="2" stroke-linejoin="round"/>
+    ${data.map((d,i)=>`<circle cx="${pad+i*xStep}" cy="${yScale(d.nota)}" r="3.5" fill="${color}"/>
+    <text x="${pad+i*xStep}" y="${h-1}" text-anchor="middle" font-size="9" fill="#aaa">${d.label}</text>`).join("")}
+  </svg>`;
+}
+
+function exportHTML() {
+  const r = state.relatorio;
+  const html = `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"/><title>Relatório — ${r.analista}</title>
+<style>body{font-family:Georgia,serif;max-width:720px;margin:40px auto;color:#222;line-height:1.7}h1{font-size:22px;font-weight:600;border-bottom:2px solid #222;padding-bottom:8px}h2{font-size:15px;font-weight:600;margin:24px 0 8px;border-left:3px solid #378ADD;padding-left:10px;color:#444}.meta{color:#666;font-size:13px;margin-bottom:24px}.resumo{background:#f5f9ff;border-left:4px solid #378ADD;padding:14px 16px;font-style:italic;margin-bottom:24px}.grid{display:flex;gap:16px;flex-wrap:wrap;margin-bottom:24px}.card{border:1px solid #e0e0e0;border-radius:8px;padding:16px;flex:1;min-width:120px;text-align:center}.nota{font-size:28px;font-weight:700;color:#185FA5}ul{margin:6px 0;padding-left:20px}li{margin-bottom:4px;font-size:14px}@media print{body{margin:20px}}</style>
+</head><body>
+<h1>Relatório de Desempenho</h1>
+<p class="meta"><strong>Analista:</strong> ${r.analista} | <strong>Período:</strong> ${r.periodo} | <strong>Tipo:</strong> ${r.tipo_reuniao} | <strong>Reuniões:</strong> ${r.total_reunioes}</p>
+<p class="resumo">${r.resumo_executivo}</p>
+<div class="grid">
+  <div class="card"><div style="font-size:12px;color:#666">Nota Geral</div><div class="nota">${r.nota_geral}</div></div>
+  <div class="card"><div style="font-size:12px;color:#666">Scorecard</div><div class="nota">${r.scorecard.aderencia_percentual}%</div></div>
+  <div class="card"><div style="font-size:12px;color:#666">Objeções</div><div class="nota">${r.objecoes.nota}</div></div>
+  <div class="card"><div style="font-size:12px;color:#666">Negociação</div><div class="nota">${r.negociacao.nota}</div></div>
+</div>
+<h2>Scorecard</h2><p>${r.scorecard.detalhes}</p>
+<h2>Objeções</h2><p>${r.objecoes.detalhes}</p>${r.objecoes.exemplos?.length?`<ul>${r.objecoes.exemplos.map(e=>`<li>${e}</li>`).join("")}</ul>`:""}
+<h2>Negociação</h2><p>${r.negociacao.detalhes}</p>${r.negociacao.exemplos?.length?`<ul>${r.negociacao.exemplos.map(e=>`<li>${e}</li>`).join("")}</ul>`:""}
+<h2>Pontos Fortes</h2><ul>${r.pontos_fortes.map(p=>`<li>${p}</li>`).join("")}</ul>
+<h2>Pontos a Melhorar</h2><ul>${r.pontos_melhorar.map(p=>`<li>${p}</li>`).join("")}</ul>
+<h2>Evolução</h2><p>${r.evolucao.descricao}</p>
+</body></html>`;
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([html],{type:"text/html"}));
+  a.download = `relatorio_${r.analista.replace(/\s+/g,"_")}_${r.tipo_reuniao.replace(/\s+/g,"_")}.html`;
+  a.click();
+}
+
+async function generate() {
+  if (!state.analista) return;
+  state.step = "loading"; state.error = "";
+  render();
+
+  try {
+    state.loadingMsg = "Buscando reuniões..."; render();
+    const params = { userId: state.userId, promptId: state.promptId };
+    if (state.dataInicio) params.startDate = state.dataInicio + "T00:00:00Z";
+    if (state.dataFim) params.endDate = state.dataFim + "T23:59:59Z";
+    const raw = await proxyFetch("transcribes", params);
+    const lista = raw.data || [];
+
+    if (lista.length === 0) throw new Error(`Nenhuma reunião encontrada para ${state.analista} no período.`);
+
+    const dadosParaAnalise = lista.map(t => ({
+      titulo: t.title,
+      data: t.dateIncluded,
+      duracao_segundos: t.duration,
+      tipo: t.prompt?.name,
+      transcricao: t.transcript?.text?.slice(0, 2000) || null,
+      scorecard_respostas: (t.answers||[]).filter(a=>a.score!=null).map(a=>({pergunta:a.question?.slice(0,80), nota:a.score})),
+      scorecard_simnao: (t.answers||[]).filter(a=>a.yesNo).map(a=>({pergunta:a.question?.slice(0,60), resposta:a.yesNo})),
+      resumo: t.summary?.slice(0, 500) || null,
+      sentimento_analista: t.sentimentAnalysis?.speakerSentiment?.find(s=>s.speaker===state.analista)?.sentiments || null,
+    }));
+
+    const periodo = state.dataInicio && state.dataFim
+      ? `${new Date(state.dataInicio).toLocaleDateString("pt-BR")} a ${new Date(state.dataFim).toLocaleDateString("pt-BR")}`
+      : state.dataInicio ? `A partir de ${new Date(state.dataInicio).toLocaleDateString("pt-BR")}` : "Todos os períodos";
+
+    state.loadingMsg = `${lista.length} reuniões encontradas. Analisando com IA...`; render();
+    const resultado = await claudeAnalyze(dadosParaAnalise, state.analista, periodo, state.tipoReuniao);
+    if (!resultado) throw new Error("Não foi possível gerar o relatório.");
+    state.relatorio = resultado;
+    state.step = "result";
+  } catch(e) {
+    state.error = e.message; state.step = "error";
+  }
+  render();
+}
+
+function render() {
+  const app = document.getElementById("app");
+
+  if (state.step === "config") {
+    const userOptions = state.users.length > 0
+      ? state.users.filter(u => CS_EMAILS.includes(u.email)).map(u => `<option value="${u.id}|${u.name||u.email}">${u.name||u.email}</option>`).join("")
+      : CS_EMAILS.map(e => `<option value="|${e}">${e}</option>`).join("");
+
+    app.innerHTML = `
+      <h1>Relatório de Analista</h1>
+      <p class="subtitle">Customer Success — Elephan</p>
+      <label>Analista — Customer Success</label>
+      <select id="sel-analista" onchange="selectAnalista(this.value)">
+        <option value="">Selecione um analista</option>
+        ${userOptions}
+      </select>
+      <label>Tipo de reunião</label>
+      <div class="tipo-btns">
+        <button class="tipo-btn ${!state.tipoReuniao?'active':''}" onclick="selectTipo('','')">Todos</button>
+        ${TIPOS.map(t=>`<button class="tipo-btn ${state.tipoReuniao===t.name?'active':''}" onclick="selectTipo('${t.name}','${t.id}')">${t.name}</button>`).join("")}
+      </div>
+      <div class="grid2">
+        <div><label>Data início</label><input type="date" value="${state.dataInicio}" onchange="state.dataInicio=this.value;render()"/></div>
+        <div><label>Data fim</label><input type="date" value="${state.dataFim}" onchange="state.dataFim=this.value;render()"/></div>
+      </div>
+      ${state.analista ? `<div class="preview"><strong>${state.analista}</strong>${state.tipoReuniao ? ` · ${state.tipoReuniao}` : " · Todos os tipos"}${state.dataInicio ? ` · a partir de ${new Date(state.dataInicio).toLocaleDateString("pt-BR")}` : ""}${state.dataFim ? ` até ${new Date(state.dataFim).toLocaleDateString("pt-BR")}` : ""}</div>` : ""}
+      <button class="btn" onclick="generate()" ${!state.analista||!state.tipoReuniao?"disabled":""}>Gerar relatório →</button>
+    `;
+    return;
+  }
+
+  if (state.step === "loading") {
+    app.innerHTML = `<div class="spinner"><div class="spin"></div><div class="spin-msg">${state.loadingMsg}</div></div>`;
+    return;
+  }
+
+  if (state.step === "error") {
+    app.innerHTML = `<div class="error-box">${state.error}</div><button class="btn btn-sec" onclick="state.step='config';render()">← Voltar</button>`;
+    return;
+  }
+
+  if (state.step === "result" && state.relatorio) {
+    const r = state.relatorio;
+    const tendBadge = r.evolucao?.tendencia === "crescente"
+      ? `<span class="badge badge-green">📈 Crescente</span>`
+      : r.evolucao?.tendencia === "decrescente"
+      ? `<span class="badge badge-red">📉 Decrescente</span>`
+      : `<span class="badge badge-gray">➡ Estável</span>`;
+
+    app.innerHTML = `
+      <div class="report">
+        <div class="report-header">
+          <div>
+            <button style="background:none;border:none;cursor:pointer;font-size:12px;color:#888;margin-bottom:6px;display:block" onclick="state.step='config';render()">← novo relatório</button>
+            <div class="report-name">${r.analista}</div>
+            <div class="report-meta">
+              <span>${r.periodo}</span> · <span class="badge badge-blue">${r.tipo_reuniao}</span> · <span>${r.total_reunioes} reuniões</span> · ${tendBadge}
+            </div>
+          </div>
+          <button class="btn btn-sec" style="width:auto;padding:7px 14px;font-size:13px" onclick="exportHTML()">⬇ Exportar HTML</button>
+        </div>
+
+        <div class="resumo">${r.resumo_executivo}</div>
+
+        <div class="metrics">
+          ${[{l:"Nota geral",v:r.nota_geral},{l:"Scorecard",v:r.scorecard?.nota},{l:"Objeções",v:r.objecoes?.nota},{l:"Negociação",v:r.negociacao?.nota}].map(m=>`
+            <div class="metric">
+              <div class="metric-label">${m.l}</div>
+              ${scoreRingSVG(m.v||0, notaColor(m.v||0))}
+            </div>`).join("")}
+        </div>
+
+        <div class="pts-grid">
+          <div>
+            <div class="sec-label">Pontos fortes</div>
+            ${(r.pontos_fortes||[]).map(p=>`<div class="pt-item"><span class="pt-icon" style="color:#1D9E75">✓</span><span>${p}</span></div>`).join("")}
+          </div>
+          <div>
+            <div class="sec-label">Pontos a melhorar</div>
+            ${(r.pontos_melhorar||[]).map(p=>`<div class="pt-item"><span class="pt-icon" style="color:#D85A30">↑</span><span>${p}</span></div>`).join("")}
+          </div>
+        </div>
+
+        <div style="margin-bottom:1.5rem">
+          <div class="sec-label">Aderência ao scorecard</div>
+          <div class="card">
+            <div class="bar-wrap">
+              <div class="bar-track"><div class="bar-fill" style="width:${r.scorecard?.aderencia_percentual||0}%;background:${notaColor(r.scorecard?.nota)}"></div></div>
+              <span style="font-size:13px;font-weight:500;min-width:36px">${r.scorecard?.aderencia_percentual}%</span>
+            </div>
+            <p style="font-size:13px;color:#666;line-height:1.6">${r.scorecard?.detalhes}</p>
+          </div>
+        </div>
+
+        <div class="two-cols">
+          ${[{t:"Gestão de objeções",d:r.objecoes},{t:"Negociação",d:r.negociacao}].map(({t,d})=>`
+            <div>
+              <div class="sec-label">${t}</div>
+              <div class="card">
+                <p style="font-size:13px;color:#666;line-height:1.6;margin-bottom:8px">${d?.detalhes}</p>
+                ${(d?.exemplos||[]).map(e=>`<div class="obs-item">"${e}"</div>`).join("")}
+              </div>
+            </div>`).join("")}
+        </div>
+
+        <div>
+          <div class="sec-label">Evolução ao longo do tempo</div>
+          <div class="card">
+            <p style="font-size:13px;color:#666;line-height:1.6;margin-bottom:12px">${r.evolucao?.descricao}</p>
+            ${trendSVG(r.evolucao?.notas_por_reuniao)}
+          </div>
+        </div>
+      </div>`;
+    return;
+  }
+}
+
+function selectAnalista(val) {
+  if (!val) { state.analista = ""; state.userId = ""; render(); return; }
+  const [id, name] = val.split("|");
+  state.userId = id;
+  state.analista = name;
+  render();
+}
+
+function selectTipo(name, id) {
+  state.tipoReuniao = name;
+  state.promptId = id;
+  render();
+}
+
+// Init
+async function init() {
+  render();
+  try {
+    const data = await proxyFetch("users");
+    state.users = data.data || [];
+    render();
+  } catch(e) { render(); }
+}
+
+init();
+</script>
+</body>
+</html>
